@@ -1,208 +1,288 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="description" content="">
-    <meta name="author" content="">
-
-    <!-- Note there is no responsive meta tag here -->
-
-    <link rel="shortcut icon" href="../assets/ico/favicon.ico.html">
-
-    <title>Yanshuo Chen</title>
-
-    <!-- Bootstrap core CSS -->
-    <link href="css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Custom styles for this template -->
-    <link href="css/non-responsive.css" rel="stylesheet">
-    <link href="css/style.css" rel="stylesheet">
-
-    <style>
-      body {
-          font-weight: 550;
-      }
-      
-      h1, h2, h3, h4, h5, h6 {
-          font-weight: 550;
-      }
-  </style>
-
-
-
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Yanshuo Chen is a PhD student at the University of Maryland working on generative modeling for biology, post-training quantization, and quantization-aware training. Explore publications, the blog, and academic experience.">
+    <meta name="author" content="Yanshuo Chen">
+    <meta name="theme-color" content="#fbfaf6">
+    <link rel="canonical" href="https://chenyanshuo.com/">
+    <title>Yanshuo Chen — AI for Biology &amp; Efficient ML</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="css/proposal.css?v=4">
+    <script src="js/proposal.js?v=2" defer></script>
   </head>
-
   <body>
+    <a class="skip-link" href="#content">Skip to content</a>
 
-    <!-- Fixed navbar -->
-    <div class="navbar navbar-default navbar-fixed-top" role="navigation">
-      <div class="container">
-        <div class="navbar-header">
-          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-          <a class="navbar-brand">Yanshuo Chen</a>
+    <div class="page-shell" id="top">
+      <aside class="identity-rail" aria-label="Profile and navigation">
+        <div class="identity-heading">
+          <h1>Yanshuo Chen</h1>
+          <p>Fourth-year PhD student<br>in Computer Science</p>
         </div>
-        <div class="navbar-collapse collapse">
-          <ul class="nav navbar-nav">
-            <li><a href="index.html">Home</a></li>
-            <li><a href="#pubs">Research</a></li>
-            <li><a href="#teaching">Teaching</a></li>
-            <li><a href="#awards">Awards</a></li>
+
+        <img class="portrait" src="assets/yanshuo-headshot.webp" alt="Portrait of Yanshuo Chen" width="480" height="720" fetchpriority="high">
+
+        <div class="affiliation">
+          <p>University of Maryland<br>College Park, MD</p>
+          <a href="mailto:cys@umd.edu">cys@umd.edu</a>
+        </div>
+
+        <div class="profile-links" aria-label="Profile links">
+          <a href="https://scholar.google.com/citations?user=D7bp1H8AAAAJ&amp;hl=en" target="_blank" rel="noreferrer">Google Scholar</a>
+          <a href="https://github.com/poseidonchan" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://www.linkedin.com/in/yanshuo-chen-592a1b254/" target="_blank" rel="noreferrer">LinkedIn</a>
+        </div>
+
+        <nav class="section-nav" aria-label="Page sections">
+          <a href="#about" aria-current="location">About</a>
+          <a href="#publications">Publications</a>
+          <a href="blog.html">Blog <span aria-hidden="true">↗</span></a>
+          <a href="#news">News</a>
+          <a href="#experience">Experience</a>
+          <a href="#teaching">Teaching</a>
+          <a href="#education">Education</a>
+        </nav>
+      </aside>
+
+      <main class="content" id="content" tabindex="-1">
+        <section class="section about" id="about" aria-labelledby="about-title">
+          <p class="eyebrow">Research focus</p>
+          <h2 class="research-headline" id="about-title">
+            <span class="focus-direction">AI for <span class="focus-line focus-keyword">biology.</span></span>
+            <span class="focus-direction"><span class="focus-keyword">Efficient</span> <span class="focus-line">intelligence.</span></span>
+          </h2>
+          <p class="lead">
+            I develop generative models for biological discovery and design, and low-precision methods that make large AI models more efficient to train and deploy.
+          </p>
+          <p class="bio">
+            I am a PhD student at the University of Maryland, advised by
+            <a href="https://www.cs.umd.edu/~heng/" target="_blank" rel="noreferrer">Heng Huang</a>
+            and working closely with
+            <a href="https://www.publichealth.pitt.edu/directory/wei-chen" target="_blank" rel="noreferrer">Wei Chen</a>.
+            Previously, I received my B.S. in Biological Science from Tsinghua University.
+          </p>
+
+          <h3 class="sr-only">Research interests</h3>
+          <dl class="interests">
+            <div>
+              <dt>AI for biology</dt>
+              <dd>Generative modeling for virtual cells, mRNA design, and protein design. I develop models to predict cellular responses and generate biological sequences with desired functions.</dd>
+            </div>
+            <div>
+              <dt>Efficient machine learning</dt>
+              <dd>Post-training quantization, quantization-aware training, and efficient inference for language and multimodal models. I work on low-precision methods that reduce memory and compute costs while preserving model capabilities.</dd>
+            </div>
+          </dl>
+
+          <details class="vision-statement" id="vision">
+            <summary>Long-term vision</summary>
+            <p>
+              My long-term mission is to build a future in which biological systems can be understood and responsibly programmed to improve human life, while intelligence is accessible to everyone. I pursue this vision through two complementary directions: AI for biology, to move from understanding life to designing it responsibly; and efficient machine learning, to pair stronger intelligence with substantially lower inference costs so advanced AI becomes a resource everyone can use.
+            </p>
+          </details>
+          <aside class="latest-note" aria-labelledby="latest-note-title">
+            <p class="eyebrow">Latest on the blog <span aria-hidden="true">·</span> <time datetime="2026-09-24">Sep. 2026</time></p>
+            <h3 id="latest-note-title"><a href="blog/who-owns-intelligence.html">Who Owns Intelligence? <span aria-hidden="true">↗</span></a></h3>
+            <p>Personal AI may arrive with the computer you were going to buy anyway. What that means for cost, control, and the platforms we choose.</p>
+          </aside>
+        </section>
+
+        <section class="section" id="publications" aria-labelledby="publications-title">
+          <div class="section-title-row">
+            <h2 id="publications-title">Selected publications</h2>
+            <a href="https://scholar.google.com/citations?user=D7bp1H8AAAAJ&amp;hl=en" target="_blank" rel="noreferrer">Google Scholar <span aria-hidden="true">↗</span></a>
+          </div>
+          <div class="publication-filters" role="group" aria-label="Filter publications by research area" hidden>
+            <button type="button" data-filter="all" aria-pressed="true" aria-controls="publication-list">All work</button>
+            <button type="button" data-filter="biology" aria-pressed="false" aria-controls="publication-list">AI for biology</button>
+            <button type="button" data-filter="ml" aria-pressed="false" aria-controls="publication-list">Efficiency &amp; ML</button>
+          </div>
+          <div class="publication-meta">
+            <p class="publication-note"><sup>*</sup> Equal contribution.</p>
+            <p class="publication-count" role="status" aria-live="polite" aria-atomic="true" hidden></p>
+          </div>
+
+          <ol class="publication-list" id="publication-list" role="list">
+            <li class="publication" data-area="ml" id="mpq">
+              <span class="publication-year">2026</span>
+              <div>
+                <h3>MPQ: A Message-Passing View of Post-Training Quantization</h3>
+                <p class="authors"><strong>Yanshuo Chen</strong>, Chenxi Liu, Reza Shirkavand, and Heng Huang.</p>
+                <p class="venue"><em>NeurIPS 2026</em> · Poster.</p>
+                <p class="summary">A message-passing approach to post-training quantization for large language models.</p>
+              </div>
+            </li>
+
+            <li class="publication" data-area="ml" id="ean">
+              <span class="publication-year">2026</span>
+              <div>
+                <h3>Grounding Multimodal Reasoning with Evidence-Ablated Negatives</h3>
+                <p class="authors">Chenxi Liu, Tianyi Xiong, <strong>Yanshuo Chen</strong>, and Heng Huang.</p>
+                <p class="venue"><em>NeurIPS 2026</em> · Poster.</p>
+                <p class="summary">Uses targeted visual masking to generate hard negatives for reinforcement learning, reducing language-prior shortcuts and improving visually grounded multimodal reasoning.</p>
+              </div>
+            </li>
+
+            <li class="publication" data-area="ml">
+              <span class="publication-year">2026</span>
+              <div>
+                <h3><a href="https://openaccess.thecvf.com/content/CVPR2026/html/Xiong_Multi-Crit_Benchmarking_Multimodal_Judges_on_Pluralistic_Criteria-Following_CVPR_2026_paper.html" target="_blank" rel="noreferrer">Multi-Crit: Benchmarking Multimodal Judges on Pluralistic Criteria-Following</a></h3>
+                <p class="authors">Tianyi Xiong, Yi Ge, Ming Li, Zuolong Zhang, Pranav Kulkarni, Kaishen Wang, Qi He, Zeying Zhu, Chenxi Liu, Ruibo Chen, Tong Zheng, <strong>Yanshuo Chen</strong>, Xiyao Wang, Renrui Zhang, Wenhu Chen, and Heng Huang.</p>
+                <p class="venue"><em>CVPR 2026</em> <span class="recognition">Highlight</span> <a href="https://openaccess.thecvf.com/content/CVPR2026/html/Xiong_Multi-Crit_Benchmarking_Multimodal_Judges_on_Pluralistic_Criteria-Following_CVPR_2026_paper.html" target="_blank" rel="noreferrer">[paper]</a> <a href="https://multi-crit.github.io/" target="_blank" rel="noreferrer">[project]</a> <a href="https://github.com/tyxiong23/Multi-Crit" target="_blank" rel="noreferrer">[code]</a></p>
+                <p class="summary">A benchmark for testing whether multimodal judges can follow diverse, fine-grained evaluation criteria.</p>
+              </div>
+            </li>
+
+            <li class="publication" data-area="ml">
+              <span class="publication-year">2026</span>
+              <div>
+                <h3><a href="https://www.arxiv.org/abs/2601.22297" target="_blank" rel="noreferrer">Learning from Self-Debate: Preparing Reasoning Models for Multi-Agent Debate</a></h3>
+                <p class="authors">Chenxi Liu, <strong>Yanshuo Chen</strong>, Ruibo Chen, Tianyi Xiong, Tong Zheng, and Heng Huang.</p>
+                <p class="venue">arXiv preprint. <a href="https://www.arxiv.org/abs/2601.22297" target="_blank" rel="noreferrer">[paper]</a> <a href="https://github.com/DawnLIU35/SDRL" target="_blank" rel="noreferrer">[code]</a></p>
+                <p class="summary">Trains one reasoning model for both independent problem solving and productive multi-agent debate.</p>
+              </div>
+            </li>
+
+            <li class="publication" data-area="biology">
+              <span class="publication-year">2025</span>
+              <div>
+                <h3><a href="https://doi.org/10.1101/2025.11.24.690310" target="_blank" rel="noreferrer">CodonTranslator: A Conditional Codon Language Model for Codon Optimization Across Life Domains</a></h3>
+                <p class="authors"><strong>Yanshuo Chen<sup>*</sup></strong>, Yuming Zhang<sup>*</sup>, Joshua Li, Boxue Tian, and Heng Huang.</p>
+                <p class="venue">bioRxiv preprint. <a href="https://doi.org/10.1101/2025.11.24.690310" target="_blank" rel="noreferrer">[paper]</a> <a href="https://github.com/poseidonchan/CodonTranslator" target="_blank" rel="noreferrer">[code]</a> <a href="https://huggingface.co/alegendaryfish/CodonTranslator" target="_blank" rel="noreferrer">[model]</a></p>
+                <p class="summary">A 150M-parameter conditional language model for cross-species codon optimization.</p>
+              </div>
+            </li>
+
+            <li class="publication" data-area="biology">
+              <span class="publication-year">2025</span>
+              <div>
+                <h3><a href="https://academic.oup.com/bioinformatics/article/41/Supplement_1/i513/8199349" target="_blank" rel="noreferrer">Fast and Scalable Wasserstein-1 Neural Optimal Transport Solver for Single-Cell Perturbation Prediction</a></h3>
+                <p class="authors"><strong>Yanshuo Chen</strong>, Zhengmian Hu, Wei Chen, and Heng Huang.</p>
+                <p class="venue"><em>Bioinformatics</em>, ISMB/ECCB 2025. <a href="https://academic.oup.com/bioinformatics/article/41/Supplement_1/i513/8199349" target="_blank" rel="noreferrer">[paper]</a> <a href="https://arxiv.org/abs/2411.00614" target="_blank" rel="noreferrer">[arXiv]</a> <a href="https://github.com/poseidonchan/w1ot" target="_blank" rel="noreferrer">[code]</a></p>
+                <p class="summary">A scalable optimal-transport method for predicting cellular responses to unseen perturbations.</p>
+              </div>
+            </li>
+
+            <li class="publication" data-area="biology">
+              <span class="publication-year">2025</span>
+              <div>
+                <h3><a href="https://academic.oup.com/bioinformatics/article/41/7/btaf141/8124073" target="_blank" rel="noreferrer">Enhancing Privacy in Biosecurity with Watermarked Protein Design</a></h3>
+                <p class="authors"><strong>Yanshuo Chen<sup>*</sup></strong>, Zhengmian Hu<sup>*</sup>, Yihan Wu, Ruibo Chen, Yongrui Jin, Marcus Zhan, Chengjin Xie, Wei Chen, and Heng Huang.</p>
+                <p class="venue"><em>Bioinformatics</em>, 41(7). <a href="https://academic.oup.com/bioinformatics/article/41/7/btaf141/8124073" target="_blank" rel="noreferrer">[paper]</a> <a href="https://github.com/poseidonchan/ProteinWatermark" target="_blank" rel="noreferrer">[code]</a></p>
+                <p class="summary">Introduces statistical watermarking for protein design as a practical biosecurity safeguard.</p>
+              </div>
+            </li>
+
+            <li class="publication" data-area="ml">
+              <span class="publication-year">2025</span>
+              <div>
+                <h3><a href="https://openreview.net/forum?id=Nlm3Xf0W9S" target="_blank" rel="noreferrer">A Watermark for Order-Agnostic Language Models</a></h3>
+                <p class="authors">Ruibo Chen<sup>*</sup>, Yihan Wu<sup>*</sup>, <strong>Yanshuo Chen</strong>, Chenxi Liu, Junfeng Guo, and Heng Huang.</p>
+                <p class="venue"><em>ICLR 2025</em>. <a href="https://openreview.net/forum?id=Nlm3Xf0W9S" target="_blank" rel="noreferrer">[paper]</a> <a href="https://arxiv.org/abs/2410.13805" target="_blank" rel="noreferrer">[arXiv]</a></p>
+              </div>
+            </li>
+
+            <li class="publication" data-area="biology">
+              <span class="publication-year">2022</span>
+              <div>
+                <h3><a href="https://www.nature.com/articles/s41467-022-34550-9" target="_blank" rel="noreferrer">Deep Autoencoder for Interpretable Tissue-Adaptive Deconvolution and Cell-Type-Specific Gene Analysis</a></h3>
+                <p class="authors"><strong>Yanshuo Chen<sup>*</sup></strong>, Yixuan Wang<sup>*</sup>, Yuelong Chen, Yuqi Cheng, Yumeng Wei, Yunxiang Li, Jiuming Wang, Yingying Wei, Ting-Fung Chan, and Yu Li.</p>
+                <p class="venue"><em>Nature Communications</em>, 13:6735. <a href="https://www.nature.com/articles/s41467-022-34550-9" target="_blank" rel="noreferrer">[paper]</a> <a href="https://github.com/poseidonchan/TAPE" target="_blank" rel="noreferrer">[code]</a> <a href="https://sctape.readthedocs.io/" target="_blank" rel="noreferrer">[docs]</a></p>
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <section class="section" id="news" aria-labelledby="news-title">
+          <h2 id="news-title">News</h2>
+          <ul class="news-list">
+            <li>
+              <time datetime="2026-09">Sep. 2026</time>
+              <span>Two papers, <a href="#mpq">MPQ</a> and <a href="#ean">EAN</a>, have been accepted as posters at <strong>NeurIPS 2026</strong>!</span>
+            </li>
+            <li>
+              <time datetime="2026-09-24">Sep. 2026</time>
+              <span>New blog post: <a href="blog/who-owns-intelligence.html"><em>Who Owns Intelligence?</em></a>, on personal AI, the economics of ownership, and user control.</span>
+            </li>
+            <li>
+              <time datetime="2026-08">Aug. 2026</time>
+              <span>New blog post: <a href="blog/qwen38-5090.html">running Qwen3.8-27B on a single RTX 5090</a>, with measurements of quantization, long-context inference, and cache fidelity.</span>
+            </li>
           </ul>
-        </div><!--/.nav-collapse -->
-      </div>
+          <details class="news-archive">
+            <summary>Earlier updates <span class="archive-count">5</span></summary>
+            <ul class="news-list">
+              <li>
+                <time datetime="2026-06">Jun. 2026</time>
+                <span>Our <a href="https://multi-crit.github.io/" target="_blank" rel="noreferrer"><em>Multi-Crit</em></a> paper appeared at CVPR 2026 and was selected as a <strong>Highlight</strong>.</span>
+              </li>
+              <li>
+                <time datetime="2026-05">May 2026</time>
+                <span>Recognized as an <strong>ICML 2026 Gold Reviewer</strong>.</span>
+              </li>
+              <li>
+                <time datetime="2026-01">Jan. 2026</time>
+                <span>Released <a href="https://www.arxiv.org/abs/2601.22297" target="_blank" rel="noreferrer"><em>Learning from Self-Debate</em></a>.</span>
+              </li>
+              <li>
+                <time datetime="2025-11">Nov. 2025</time>
+                <span>Released <a href="https://www.biorxiv.org/content/10.1101/2025.11.24.690310v1" target="_blank" rel="noreferrer"><em>CodonTranslator</em></a>, its code, and pretrained model.</span>
+              </li>
+              <li>
+                <time datetime="2025-07">Jul. 2025</time>
+                <span>Our Wasserstein-1 neural optimal transport solver was published in <em>Bioinformatics</em> and presented at ISMB/ECCB.</span>
+              </li>
+            </ul>
+          </details>
+        </section>
+
+        <section class="section" id="experience">
+          <h2>Experience</h2>
+          <ul class="record-list experience-list">
+            <li>
+              <div>
+                <strong>Research Intern, Adobe Research</strong>
+                <span>Efficient Multi-Agent Workflow</span>
+              </div>
+              <span class="record-date"><time datetime="2026-05">May</time>–<time datetime="2026-08">Aug. 2026</time></span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="section" id="teaching">
+          <h2>Teaching &amp; mentoring</h2>
+          <ul class="record-list">
+            <li><span>Co-Instructor, Selected Topics in Machine Learning (CMSC848G)</span><time>Spring 2024, 2025, 2026</time></li>
+            <li><span>Mentor, High School Students Research Program</span><time>Spring 2025</time></li>
+            <li><span>Mentor, REU research projects</span><time>Summer 2024</time></li>
+          </ul>
+        </section>
+
+        <section class="section" id="education">
+          <h2>Education &amp; distinction</h2>
+          <ul class="education-list">
+            <li>
+              <div><strong>University of Maryland, College Park</strong><span>Ph.D. in Computer Science</span></div>
+              <time>2023–present</time>
+            </li>
+            <li>
+              <div><strong>Tsinghua University</strong><span>B.S. in Biological Science</span></div>
+              <time>2018–2022</time>
+            </li>
+            <li>
+              <div><strong>China National Biology Olympiad</strong><span>Gold Medal</span></div>
+              <time>2017</time>
+            </li>
+          </ul>
+        </section>
+
+        <footer class="page-footer">
+          <span>Yanshuo Chen</span>
+          <span>Updated <time datetime="2026-09">September 2026</time> <span aria-hidden="true">·</span> <a href="#top">Back to top ↑</a></span>
+        </footer>
+      </main>
     </div>
-
-    <br/> 
-    
-    <div class="container">
-    	<div class="page-header">
-      		<h2> &nbsp &nbsp Yanshuo Chen </h2>
-      	</div>
-        <div class="row">	
-      		<div class="col-md-6 col-sm-7 col-xs-7">
-      			<img src="img.jpg" class="col-md-11 col-sm-11 col-xs-11" title="Yanshuo Chen"/>
-      		</div>
-      
-      		<div class="col-md-6 col-sm-5 col-xs-5">
-			<p>I am a third-year PhD student at 
-        <a href="https://www.cs.umd.edu/" >Department of Computer Science</a>  of
-         <a href="https://www.umd.edu/" >University of Maryland</a>. I am  fortunate to be advised by Prof. <a href="https://www.cs.umd.edu/~heng/" >Heng Huang</a> and work closely with Prof. <a href="https://www.publichealth.pitt.edu/directory/wei-chen" >Wei Chen</a> at University of Pittsburgh. 
-
-         Prior to UMD, 
-         I received my B.S. in Biological Sciences from  <a href="https://life.tsinghua.edu.cn/">Tsinghua University</a> in June 2022.
-        </br>
-
-        <br/>
-        My research interests center around computational biology and related machine learning problems,
-        including single-cell perturbation modeling, protein design, proteogenomics, and biomedical data privacy protection.
-         <br/> 
-         <br/>
-        
-
-        I am open to chatting and collaborating with researchers from different fields. Feel free to contact me through Email (<a href="mailto:cys@umd.edu">cys@umd.edu</a>).
-        <br/>
-        <br/>
-        Associated websites: <a href="https://github.com/poseidonchan">GitHub</a>, <a href="https://scholar.google.com/citations?user=D7bp1H8AAAAJ&hl=en&citsig=AOScLA1IotMr26rdz2cEQ7Ros4Jk">Google Scholar</a>, <a href="https://www.linkedin.com/in/yanshuo-chen-592a1b254/">LinkedIn</a>
-       <br/>
-
-
-       <br/>
-
-
-      
-		</p>
-      		</div>
-      	</div>
-    </div>
-
-
-  <div id='pubs' class="container">
-    <br />
-    <div class="page-header">
-      <h2> Research Works</h2>
-    </div>
-    <div style="display: flex; align-items: center;">
-      <h4 style="margin-right: 10px;">Selected Publications:</h4>
-      <span>(<font color="#C80000">*</font> denotes equal contribution.)</span>
-    </div>
-    <ul>
-      <li>
-        <strong>Fast and Scalable Wasserstein-1 Neural Optimal Transport Solver for Single-Cell Perturbation Prediction</strong><br>
-        <strong>Yanshuo Chen</strong>, Zhengmian Hu, Wei Chen, Heng Huang<br>
-        <em>ISMB/ECCB 2025</em> 
-      </li>
-      <li>
-        <strong>A Watermark for Order-Agnostic Language Models</strong><br>
-        Ruibo Chen<font color="#C80000">*</font>, Yihan Wu<font color="#C80000">*</font>, <strong>Yanshuo Chen</strong>, Chenxi Liu, Junfeng Guo, Heng Huang<br>
-        <em>ICLR 2025</em>
-      </li>
-      <li>
-        <strong>Enhancing Privacy in Biosecurity with Watermarked Protein Design</strong><br>
-        <strong>Yanshuo Chen</strong><font color="#C80000">*</font>, Zhengmian Hu<font color="#C80000">*</font>, Yihan Wu, Ruibo Chen, Yongrui Jin, Wei Chen, Heng Huang<br>
-        <em>Bioinformatics</em>
-      </li>
-      
-      <li>
-        <strong>Deep autoencoder for interpretable tissue-adaptive deconvolution and cell-type-specific gene analysis</strong><br>
-        <strong>Yanshuo Chen</strong><font color="#C80000">*</font>, Yixuan Wang<font color="#C80000">*</font>, Yuelong Chen, Yuqi Cheng, Yumeng Wei, Yunxiang Li, Jiuming Wang, Yingying Wei, Ting-Fung Chan, Yu Li<br>
-        <em>Nature Communications</em>
-      </li>
-    </ul>
-
-    <div style="display: flex; align-items: center;">
-      <h4 style="margin-right: 10px;">Preprints:</h4>
-    </div>
-
-    <ul>
-      <li>
-        <strong>CodonTranslator: a conditional codon language model for codon optimization across all domains of life
-</strong><br>
-        <strong>Yanshuo Chen</strong><font color="#C80000">*</font>, Yuming Zhang<font color="#C80000">*</font>, Joshua Li, Boxue Tian, Heng Huang<br>
-        Under review, <em>bioRxiv</em> <a href="https://doi.org/10.1101/2025.11.24.690310">preprint</a>
-        
-      </li>
-      <li>
-        <strong>Inferring Single-Cell RNA Kinetics from Various Biological Priors</strong><br>
-        <strong>Yanshuo Chen</strong>, Zhengmian Hu, Ke Ni, Site Feng, Wei Chen, Heng Huang<br>
-        Under review, <em>bioRxiv</em> <a href="https://doi.org/10.1101/2024.05.21.595179">preprint</a>
-        
-      </li>
-      <li>
-        <strong>Doublet Detection of Single-Cell Sequencing Data via Maximizing Area Under Precision-Recall Curve</strong><br>
-        <strong>Yanshuo Chen</strong>, Xidong Wu, Ke Ni, Haoran Hu, Molin Yue, Wei Chen, Heng Huang<br>
-        Under review, <em>bioRxiv</em> <a href="https://www.biorxiv.org/content/10.1101/2023.10.30.564840v1">preprint</a>
-      </li>
-    </ul>
-  </div>
-
-  
-
-  <div id='teaching' class="container">
-    <br />
-    <div class="page-header">
-    <h2>Teaching & Mentoring Experiences</h2>
-    </div>
-  <h4>At UMD:</h4>
-  <ul>
-    <li>
-      Co-Instructor: Selected Topics in Machine Learning (CMSC848G) <span style="float: right;"><em>Spring 2025</em></span>
-    </li>
-    <li>
-      Co-Instructor: Selected Topics in Machine Learning (CMSC848G) <span style="float: right;"><em>Spring 2024</em></span>
-    </li>
-
-    <li>
-      Mentorship: High School Students Research Program <span style="float: right;"><em>Spring 2025</em></span>
-    </li>
-
-    <li>
-      Mentorship: REU research projects <span style="float: right;"><em>Summer 2024</em></span>
-    </li>
-      
-</div>
-
-
-<div id='awards' class="container">
-  <br />
-  <div class="page-header">
-  <h2>Selected Awards</h2>
-</div>
-
-  <li>
-    Gold Medal of 26th China National Biology Olympiad <span style="float: right;"><em>Aug. 2017</em></span>
-  </li>
-  
-</div>
-
-
-
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
-    <script src="js/bootstrap.min.js"></script>
   </body>
 </html>

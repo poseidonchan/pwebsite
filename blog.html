@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Yanshuo Chen's blog on personal AI, efficient machine learning, AI for biology, and the future of computing.">
+    <link rel="canonical" href="https://chenyanshuo.com/blog.html">
+    <meta name="author" content="Yanshuo Chen">
+    <meta name="theme-color" content="#fbfaf6">
+    <title>Blog — Yanshuo Chen</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="css/blog.css?v=7">
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+      <a class="site-name" href="index.html">Yanshuo Chen</a>
+      <nav aria-label="Primary navigation">
+        <a href="index.html">Academic home</a>
+        <a aria-current="page" href="blog.html">Blog</a>
+      </nav>
+    </header>
+
+    <main class="blog-index" id="content" tabindex="-1">
+      <header class="index-intro">
+        <p class="eyebrow">Yanshuo Chen</p>
+        <h1>Blog</h1>
+        <p>
+          Ideas and experiments on personal AI, efficient machine learning, and AI for biology. How we build intelligence, what it costs to use, and who gets to control it.
+        </p>
+      </header>
+
+      <section class="post-archive" aria-labelledby="latest-posts">
+        <h2 id="latest-posts">Latest posts</h2>
+        <article class="post-entry">
+          <time datetime="2026-09-24">September 24, 2026</time>
+          <h3><a href="blog/who-owns-intelligence.html">Who Owns Intelligence?</a></h3>
+          <p class="post-hook">Personal AI may arrive with the computer you were going to buy anyway.</p>
+          <p>
+            That changes the economics of ownership, the boundary around private work, and the competition between NVIDIA, AMD, and Apple. A short guide to my argument for personal AI as an everyday capability, with the full analysis attached.
+          </p>
+          <ul class="tag-list" aria-label="Topics">
+            <li>Personal AI</li>
+            <li>economics</li>
+            <li>privacy &amp; control</li>
+          </ul>
+          <div class="post-links">
+            <a href="blog/who-owns-intelligence.html">Read the post <span aria-hidden="true">→</span></a>
+            <a href="assets/who-owns-intelligence-en-v18.pdf" type="application/pdf" target="_blank" rel="noreferrer">Full analysis <span class="link-meta">PDF · 48 pages</span> <span aria-hidden="true">↗</span></a>
+          </div>
+        </article>
+        <article class="post-entry">
+          <time datetime="2026-08-30">August 30, 2026</time>
+          <h3><a href="blog/qwen38-5090.html">Running Qwen3.8-27B on a Single RTX 5090</a></h3>
+          <p>
+            Fitting the full multimodal model into 32 GB required quantizing its text, vision, and draft components, then managing both attention caches and recurrent state. This note explains the calibration procedure, serving optimizations, and measured tradeoffs between memory, speed, and output fidelity.
+          </p>
+          <dl class="entry-results" aria-label="Headline results">
+            <div><dt>Hardware</dt><dd>1 × 32 GB GPU</dd></div>
+            <div><dt>Native context</dt><dd>262,144 tokens</dd></div>
+            <div><dt>128K cold prefill</dt><dd>17.18 s</dd></div>
+            <div><dt>128K + 512 decode</dt><dd>166.6 tok/s</dd></div>
+          </dl>
+          <p class="entry-result-note">Decode throughput uses MTP with a 128K-token prompt and 512 generated tokens. The separate FP8/NVFP4 cache comparison found changes in next-token decisions; downstream task-quality parity remains untested.</p>
+          <ul class="tag-list" aria-label="Topics">
+            <li>LLM inference</li>
+            <li>systems</li>
+            <li>quantization</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>Yanshuo Chen</span>
+      <span>Methods, measurements, and open questions.</span>
+    </footer>
+  </body>
+</html>

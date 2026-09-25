@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Full-model quantization and long-context inference for Qwen3.8-27B on a 32 GB RTX 5090, with measured tradeoffs in memory, throughput, and cache fidelity.">
+    <link rel="canonical" href="https://chenyanshuo.com/blog/qwen38-5090.html">
+    <meta name="author" content="Yanshuo Chen">
+    <meta name="theme-color" content="#fbfaf6">
+    <title>Running Qwen3.8-27B on a Single RTX 5090 — Yanshuo Chen</title>
+    <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../css/blog.css?v=7">
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+      <a class="site-name" href="../index.html">Yanshuo Chen</a>
+      <nav aria-label="Primary navigation">
+        <a href="../index.html">Academic home</a>
+        <a aria-current="page" href="../blog.html">Blog</a>
+      </nav>
+    </header>
+
+    <main class="article-shell" id="content" tabindex="-1">
+      <article>
+        <header class="article-header">
+          <p class="eyebrow">Systems note · LLM inference</p>
+          <h1>Running Qwen3.8-27B on a Single RTX 5090</h1>
+          <p class="dek">
+            A practical account of full-model quantization, long-context inference, and cache fidelity on a 32 GB GPU.
+          </p>
+          <p class="article-meta">
+            <span>Yanshuo Chen</span>
+            <span><time datetime="2026-08-30">August 30, 2026</time></span>
+            <span>Edited <time datetime="2026-09-24">September 24, 2026</time></span>
+            <span>19 min read</span>
+          </p>
+          <p class="update-note">
+            Experiments through August 31, 2026, including the controlled FP8/NVFP4 cache comparison. The September 24 edit clarifies the methods and measurement conditions; it adds no new benchmark results.
+          </p>
+        </header>
+
+        <div class="article-body">
+          <p>
+            I set out to run the full <a href="https://huggingface.co/Qwen/Qwen3.8-27B" target="_blank" rel="noreferrer">Qwen3.8-27B</a> model on a single <a href="https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5090/" target="_blank" rel="noreferrer">RTX 5090</a>: text decoder, vision tower, multi-token-prediction (MTP) draft, and the native 262,144-token context window. This note describes the calibration and serving changes needed to fit those components into 32 GB, and the checks used to evaluate them.
+          </p>
+
+          <p>
+            The model combines attention with Gated DeltaNet recurrence. Its memory budget therefore includes weights, attention KV pages, recurrent states, speculative state, vision workspaces, and CUDA graphs. I quantized the text, MTP, and vision components; added a prefill path that reads packed NVFP4 cache data directly; and replaced speculative recurrent-state snapshots with replay.
+          </p>
+
+          <p>
+            The correctness checks were as consequential as the memory savings. A checkpoint with lower local reconstruction loss produced repetitive text after a long prompt. Later, a controlled cache comparison found that NVFP4 changed next-token decisions relative to FP8. These results shaped the calibration procedure and set limits on what the performance measurements establish.
+          </p>
+
+          <dl class="key-results" aria-label="Headline results">
+            <div>
+              <dt>128K cold prefill</dt>
+              <dd>17.18 s</dd>
+            </div>
+            <div>
+              <dt>128K + 512 decode · MTP</dt>
+              <dd>166.6 tok/s</dd>
+            </div>
+            <div>
+              <dt>Native context</dt>
+              <dd>262,144</dd>
+            </div>
+          </dl>
+
+          <p class="measurement-note">
+            <strong>Reading the results.</strong> The 262,144-token figure is the native context window. The 166.6 tok/s result measures decode with MTP at a 128K-token prompt plus 512 generated tokens, excluding prefill. It is not throughput at the maximum context. The <a href="#state">FP8/NVFP4 comparison</a> below uses a separate target-only profile and found changes in next-token decisions; downstream task-quality parity remains untested.
+          </p>
+
+          <details class="toc" open>
+            <summary>Contents</summary>
+            <ol>
+              <li><a href="#problem">Hardware and memory budget</a></li>
+              <li><a href="#quantization">Calibration and full-model quantization</a></li>
+              <li><a href="#degenerate-output">Diagnosing repetitive generation</a></li>
+              <li><a href="#prefill">Prefill acceleration</a></li>
+              <li><a href="#speculative">Speculative decoding</a></li>
+              <li><a href="#vision">Vision-tower acceleration</a></li>
+              <li><a href="#state">Cache reuse, precision, and the FP8/NVFP4 comparison</a></li>
+              <li><a href="#failures">Practical lessons</a></li>
+              <li><a href="#reproduce">Reproducibility</a></li>
+            </ol>
+          </details>
+
+          <section id="problem">
+            <h2>The hardware and memory budget</h2>
+
+            <p>
+              Qwen3.8-27B has 64 text layers: 48 Gated DeltaNet (GDN) recurrent layers and 16 full-attention layers, arranged in a repeating three-to-one pattern. Attention retains a growing KV cache; GDN carries a fixed-size recurrent state. Both must remain consistent during prefix reuse and speculative decoding, while sharing memory with the vision tower and MTP module.
+            </p>
+
+            <div class="architecture" role="img" aria-label="A 64-layer decoder repeating three Gated DeltaNet layers followed by one full-attention layer, sixteen times">
+              <div><span>GDN</span><span>GDN</span><span>GDN</span><strong>Attention</strong></div>
+              <p>× 16 blocks = 48 recurrent layers + 16 full-attention layers</p>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <caption>Local test system and serving target</caption>
+                <tbody>
+                  <tr><th scope="row">GPU</th><td>GeForce RTX 5090, 32 GB GDDR7, SM 12.0</td></tr>
+                  <tr><th scope="row">CPU / host memory</th><td>Ryzen 9 9950X / 60 GiB visible</td></tr>
+                  <tr><th scope="row">Software snapshot</th><td>CUDA 13.0, PyTorch 2.13 dev, Triton 3.7.1, FlashInfer 0.6.17</td></tr>
+                  <tr><th scope="row">Context target</th><td>262,144 tokens per request</td></tr>
+                  <tr><th scope="row">Configured runtime limits</th><td>8 running + 8 queued, CUDA graphs for batches 1/2/4/8</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p>
+              I measured the complete serving process: which kernel launched, whether output checks passed, and how much memory remained after runtime allocations. The configured request limits above are scheduler settings, not evidence that eight requests can each use the maximum context simultaneously.
+            </p>
+          </section>
+
+          <section id="quantization">
+            <h2>1. Calibrating and quantizing the full model</h2>
+
+            <p>
+              Compressing the text decoder alone left too little room for the BF16 MTP module, vision tower, and runtime state. The final procedure quantizes 401 eligible matrices in the text decoder and language-model head, plus 118 across MTP and vision.
+            </p>
+
+            <h3>Calibration data and evaluation isolation</h3>
+
+            <p>
+              Activation statistics determine which weight errors a data-aware quantizer penalizes. For this deployment, calibration needed to cover reasoning, tool use, prose, long documents, OCR, charts, and general images, using the same tokenizer and state transitions as inference.
+            </p>
+
+            <p>
+              The deterministic text collector draws from pinned sources: OpenThoughts3 and OpenMathInstruct for mathematical reasoning; OpenCodeReasoning and AgentTrove for code and tool use; FineMath and FineWeb-Edu for technical prose; UltraChat, CNN/DailyMail, and WikiText for general language; and PG-19 for long books. Conversations are rendered with the deployed chat template and tokenizer before assignment to length buckets, so the buckets reflect actual model inputs.
+            </p>
+
+            <div class="table-wrap">
+              <table>
+                <caption>The text pool after tokenization with the deployed Qwen tokenizer</caption>
+                <thead>
+                  <tr><th scope="col">Length bucket</th><th scope="col">Token range</th><th scope="col">Candidate trajectories</th><th scope="col">Nested core</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Short</td><td>2K–8K</td><td>2,112</td><td>256</td></tr>
+                  <tr><td>Medium</td><td>8K–32K</td><td>1,152</td><td>128</td></tr>
+                  <tr><td>Long</td><td>32K–64K</td><td>512</td><td>96</td></tr>
+                  <tr><td>Extra long</td><td>64K–128K</td><td>256</td><td>28</td></tr>
+                  <tr><td>Ultra long</td><td>128K–262K</td><td>64</td><td>4</td></tr>
+                  <tr><th scope="row">Total</th><td>—</td><td><strong>4,096</strong></td><td><strong>512</strong></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p>
+              The candidate pool contains 97.32 million tokens. A weighted interleave across sources and lengths produces a ranked, 512-trajectory core with 12.22 million tokens. Pilot runs use prefixes of this ordering. The manifest distinguishes natural trajectories, deterministic windows, and packed samples, and records source revisions, row locations, text and token hashes, and packing recipes.
+            </p>
+
+            <p>
+              Collection is resumable. A fixed seed and source identifiers determine scan order; accepted samples are stored as raw little-endian token IDs to avoid later retokenization. A partial manifest records completed jobs so an interrupted run resumes without changing the pool.
+            </p>
+
+            <p>
+              Calibration uses training splits only. Normalized prompt and document hashes, fixed text chunks, and content-defined chunks are checked against the AIME and AA-LCR evaluation exclusion lists. Vision samples are also deduplicated by decoded RGB pixels, which catches identical images stored with different encodings.
+            </p>
+
+            <h3>Preserving state across long calibration sequences</h3>
+
+            <p>
+              Replaying all 97.32 million candidate tokens for each quantization iteration would be costly. The final pass selects twelve trajectories by reproducible hash ranking: four 32,768-token prefixes from code, math, and educational web data; four 64,000-token prefixes from reasoning, agents, WikiText, and a long AgentTrove slice; and four 128,000-token prefixes from reasoning, agents, and PG-19. The total is 899,072 input tokens.
+            </p>
+
+            <p>
+              Each trajectory starts at token zero and advances in 2,048-token chunks. Positions, attention KV, and all 48 GDN states persist across chunks; activation observations are sampled every 256 tokens. Calibration proceeds in eight-layer blocks, followed by the language-model head. Once a block is quantized, subsequent blocks receive its outputs, including the upstream quantization error they will encounter in deployment.
+            </p>
+
+            <p>
+              The vision pool contains 4,096 candidates from 36 training-set slices and a 2,048-image core. The core includes 1,600 document-heavy images—forms, receipts, charts, tables, diagrams, scene text, handwriting, and multilingual pages—and 448 general images for VQA, spatial reasoning, counting, captioning, and multi-image comparison. Sources include DocVQA, ChartQA, TextVQA, FUNSD, CORD, multilingual Wikipedia renders, VQAv2, CLEVR, and NLVR2. The approximately 78/22 split emphasizes OCR while retaining general visual coverage.
+            </p>
+
+            <p>
+              The collector reads Parquet sources by row group and indexed tar datasets by the selected member’s byte range. Images are decoded to RGB, checked for resolution and aspect ratio, and hashed as both source payloads and decoded pixels. Weighted interleaving produces nested cores of 256, 512, 1,024, and 2,048 images.
+            </p>
+
+            <blockquote>
+              Calibration should reproduce the positions, recurrent states, modalities, and upstream quantization errors expected during inference.
+            </blockquote>
+
+            <h3>The quantization objective and runtime constraints</h3>
+
+            <p>
+              For each text matrix, I compare round-to-nearest (RTN) with a BlockLDLQ update followed by ten coordinate-descent passes. Candidates minimize a local quadratic reconstruction objective under the runtime format constraints:
+            </p>
+
+            <pre class="formula"><code>minimize_Q  tr((W - Q) H (W - Q)ᵀ)
+
+subject to Q being exactly representable by the target
+NVFP4 or FP8 runtime format and its block-scale layout.</code></pre>
+
+            <p>
+              Here <code>H</code> is an activation second-moment matrix. It gives greater weight to reconstruction errors along directions that occur more often or at larger magnitude in the calibration data.
+            </p>
+
+            <p>
+              BlockLDLQ compensates for rounding error by updating later columns using the activation statistics. Coordinate descent then refines the candidate. Scoring uses the exact packed representation consumed by the Blackwell kernels, including native NVFP4 or FP8 values, block scales, and layout.
+            </p>
+
+            <p>
+              The procedure is a hardware-constrained, second-order post-training quantizer operating in the model’s original coordinates. It shares the BlockLDLQ error-feedback idea used in <a href="https://arxiv.org/abs/2307.13304" target="_blank" rel="noreferrer">QuIP</a>. <a href="https://arxiv.org/abs/2402.04396" target="_blank" rel="noreferrer">QuIP#</a> additionally uses randomized Hadamard transforms and an E8-family lattice codebook. Supporting that approach in this SGLang/FlashInfer path would require matching transforms in the runtime or correctly fused rotations around the operators. The current implementation does not make that comparison.
+            </p>
+
+            <h3 id="degenerate-output">Why lower reconstruction loss did not prevent repetition</h3>
+
+            <p>
+              On August 22, a quantized tail passed short smoke tests and improved local reconstruction loss, but repeated on a held-out trajectory of roughly 79K tokens. There was no out-of-memory event, GPU error, restart, or NaN. With MTP enabled, repetition began after 92 generated tokens on a cold run and 53 on a cache hit; with MTP disabled, it began after 46 and 136 tokens. A previously qualified tail ended naturally on the same input. The failure therefore persisted across both decoding and cache modes.
+            </p>
+
+            <p>
+              Layer-by-layer overlays localized the sensitivity to the final decoder blocks, immediately upstream of the model norm and language-model head. Recalibrating layer 63 with continuous long-context state improved all three local objectives below, but generation still failed:
+            </p>
+
+            <div class="table-wrap">
+              <table class="story-table numeric">
+                <caption>Layer-63 reconstruction losses for a candidate that still produced repetition</caption>
+                <thead>
+                  <tr><th scope="col">Layer-63 projection</th><th scope="col">Local loss: RTN → best candidate</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Gate</td><td>14.71 → 4.62</td></tr>
+                  <tr><td>Up</td><td>71.80 → 23.88</td></tr>
+                  <tr><td>Down</td><td>29.61 → 3.85</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p>
+              The held-out rollout repeated an identical token 15 times from a cold start and 29 times after a cache hit. Local reconstruction loss measures agreement on sampled activations. It cannot by itself establish that an autoregressive rollout will remain stable after many successive predictions.
+            </p>
+
+            <p>
+              The first calibration pass had used 512 independent windows of 1,024 tokens, or 524,288 tokens in total. Every window reset positions, attention KV, and all 48 GDN states. Although the failing document was in the corpus, the observer never saw the model state reached after processing its first 79K tokens. This motivated the continuous calibration procedure above.
+            </p>
+
+            <p>
+              A separate, fixed 67K incident branch exposed an algebraic error before NVFP4 rounding. Qwen’s zero-centered RMSNorm stores <code>w</code>, but uses the gain <code>1 + w</code>. Folding an AWQ channel scale <code>s</code> into the norm must preserve that effective gain:
+            </p>
+
+            <pre class="formula"><code>runtime gain:  γ = 1 + w
+
+wrong fold:    w′ = w / s
+correct fold:  w′ = (1 + w) / s - 1</code></pre>
+
+            <p>
+              The old builder used the incorrect fold. After undoing the coordinate scale, the effective gain became <code>s + w</code>. With a representative scale near 0.48 and a stored weight near zero, both gate and up activations fell to roughly 48% of their intended amplitude. SwiGLU multiplies these branches, coupling their errors.
+            </p>
+
+            <div class="table-wrap">
+              <table class="story-table story-table-copy">
+                <caption>A one-variable test held the packed NVFP4 gate/up weights fixed</caption>
+                <thead>
+                  <tr><th scope="col">Norm treatment</th><th scope="col">Closed-loop result</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Legacy zero-centered fold</td><td>Hit the 512-token cap; exact period-8 suffix for 468 tokens</td></tr>
+                  <tr><td>Correct fold only</td><td>Natural EOS after 361 tokens; 152 unique tokens; no periodic suffix</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p>
+              The packed gate/up weights were bit-for-bit identical in this comparison. Correcting only the norm fold changed a capped, periodic output into a sequence that ended naturally. The test isolated a function-changing reparameterization error, so verifying the algebra became a prerequisite for evaluating quantization loss.
+            </p>
+
+            <p>
+              For the rebuilt checkpoint, I removed the AWQ fold, returned to the official weight coordinates, and replayed the twelve continuous trajectories through eight successive layer blocks and the language-model head. Quantized upstream blocks remained active while later activation statistics were collected.
+            </p>
+
+            <p>
+              Checkpoint selection now combines local and end-to-end checks. RTN, BlockLDLQ, and coordinate descent propose packed candidates; joint-SwiGLU and downstream checks can reject them. A final-logit check measures KL divergence, normalized error, and top-1 changes. Held-out rollouts cover cold and cache-hit requests with MTP on and off, recording EOS, periodic suffixes, dominant-token fraction, and repeated-token runs. All 64 gate/up pairs retained <code>RTN + RTN</code> because the optimized alternatives did not improve on that baseline in the deployed path.
+            </p>
+
+            <p>
+              On the fixed incident branch, the rebuilt checkpoint ended after 361 generated tokens with 152 unique tokens and a maximum identical-token run of two. On a second held-out branch of 66,911 input tokens, it ended after 344 tokens with 183 unique tokens and the same maximum run. These cases became regression tests; passing them establishes recovery on those traces, not comprehensive model-quality parity.
+            </p>
+
+            <blockquote>
+              Long-context calibration requires processing the preceding tokens while preserving positions, attention KV, and recurrent state.
+            </blockquote>
+
+            <h3>Memory recovered from MTP and vision</h3>
+
+            <p>
+              MTP fully connected and attention projections use FP8 weights and activations; its MLP uses W4A16 NVFP4. Vision QKV and output projections use FP8, while vision MLP and merger matrices use W4A16 NVFP4. Convolution, positional embeddings, normalization parameters, and biases remain BF16. The exported tensors are checked against the runtime’s packed representation bit for bit.
+            </p>
+
+            <div class="table-wrap">
+              <table>
+                <caption>Memory recovered by quantizing components beyond the text trunk</caption>
+                <thead>
+                  <tr><th scope="col">Component</th><th scope="col">BF16 payload</th><th scope="col">Packed payload</th><th scope="col">Recovered</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>MTP</td><td>849.35 MB</td><td>307.69 MB</td><td>0.504 GiB</td></tr>
+                  <tr><td>Vision tower</td><td>911.79 MB</td><td>319.15 MB</td><td>0.552 GiB</td></tr>
+                  <tr><td><strong>Total</strong></td><td>1.76 GB</td><td>626.84 MB</td><td><strong>1.056 GiB</strong></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p>
+              The full-context speculative configuration had exceeded the budget by roughly 0.93 GiB. Recovering 1.056 GiB from MTP and vision closed that gap. Checkpoint checks then covered paired development prompts, OCR and multimodal inputs, AIME reasoning, long-context rollouts, and the full serving profile. These serving checks are separate from the controlled FP8/NVFP4 task-quality comparison discussed below.
+            </p>
+          </section>
+
+          <section id="prefill">
+            <h2>2. Reading packed NVFP4 cache data during prefill</h2>
+
+            <p>
+              The first NVFP4 cache path stored pages compactly but expanded the full history before attention. A 128K-token prefill took 36.134 seconds, including the cost of reading, dequantizing, and materializing that history in a larger temporary representation.
+            </p>
+
+            <p>
+              The replacement SM120 attention kernel consumes page-64 NVFP4 data directly. It pads queries within a bounded workspace and handles the final partial chunk without adding cache tokens. A 2,048-token chunk balanced launch overhead, workspace size, and register pressure in this configuration.
+            </p>
+
+            <div class="table-wrap">
+              <table>
+                <caption>Cold prefill after the native NVFP4 path</caption>
+                <thead>
+                  <tr><th scope="col">Prompt</th><th scope="col">Prefill time</th><th scope="col">Effective rate</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>32K</td><td>2.885 s</td><td>11.4K tok/s</td></tr>
+                  <tr><td>64K</td><td>6.701 s</td><td>9.8K tok/s</td></tr>
+                  <tr><td>128K</td><td>17.183 s</td><td>7.63K tok/s</td></tr>
+                  <tr><td>260,096</td><td>49.559 s</td><td>5.25K tok/s</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p>
+              At 128K, the native path was 2.103× faster than the materializing NVFP4 path; an irregular 109,658-token prompt completed in 13.698 seconds. Verifying kernel selection was necessary: an early eligibility check accepted only flattened K/V tensors, while the server supplied a three-dimensional layout and silently fell back. I therefore paired timing measurements with launch audits and output hashes.
+            </p>
+          </section>
+
+          <section id="speculative">
+            <h2>3. Speculative decoding with recurrent-state replay</h2>
+
+            <p>
+              Qwen3.8 includes MTP weights for speculative decoding. An initial depth-three NativeMTP run with a 128K-token prompt and 1,024 generated tokens reached 143.7 tokens/s, with an average acceptance of 3.98 out of four tokens. This was 2.24× the target-only baseline of 64.2 tokens/s. However, the 256K configuration ran out of memory, and repeated requests did not consistently produce identical outputs.
+            </p>
+
+            <p>
+              The target and draft caches consumed 34,816 bytes per token in that configuration. Speculative verification also retained roughly half a gigabyte of intermediate GDN states for rollback. I replaced those snapshots with <em>ReplaySSM</em>, a 0.015 GiB ring of recurrence inputs. After verification selects the accepted tokens, replaying their inputs commits the corresponding recurrent state without retaining every intermediate snapshot.
+            </p>
+
+            <div class="table-wrap">
+              <table>
+                <caption>Paired decode measurements with identical output hashes</caption>
+                <thead>
+                  <tr><th scope="col">Workload</th><th scope="col">Eager</th><th scope="col">Graph + ReplaySSM</th><th scope="col">Speedup</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>128K + 128</td><td>81.57 tok/s</td><td>140.61 tok/s</td><td>1.72×</td></tr>
+                  <tr><td>240K + 128</td><td>53.30 tok/s</td><td>81.42 tok/s</td><td>1.53×</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p>
+              With CUDA graphs and ReplaySSM, the main MTP serving profile reached <strong>166.6 tokens/s for a 128K-token prompt followed by 512 generated tokens</strong>. A separate 240K-prompt, 20K-output run sustained 125.4 decode tokens/s after a 44.6-second prefill. Output lengths and acceptance rates differ across these workloads, so the rates should be read with their individual conditions. The paired table above isolates the eager-versus-graph comparison on matching outputs.
+            </p>
+          </section>
+
+          <section id="vision">
+            <h2>4. Serving vision requests within the same memory budget</h2>
+
+            <p>
+              CPU offload for the 27-block vision encoder reduced useful GPU memory less than expected once transfers and workspaces were included, and increased multimodal latency. Quantizing the tower recovered 0.552 GiB in the payload comparison above while keeping its computation on the GPU.
+            </p>
+
+            <p>
+              The serving path uses four changes:
+            </p>
+
+            <ol>
+              <li>Keep image decoding and resizing on CPU, but run the quantized tower on GPU.</li>
+              <li>Serialize items in a multi-image request rather than multiplying peak workspaces.</li>
+              <li>Temporarily unmap the 128 MiB FlashInfer workspace through CUDA virtual memory while preserving its graph address.</li>
+              <li>Use a dedicated SM120 vision-attention kernel instead of a generic attention fallback.</li>
+            </ol>
+
+            <div class="table-wrap">
+              <table>
+                <caption>Vision-path serving checks</caption>
+                <thead>
+                  <tr><th scope="col">Input</th><th scope="col">Vision tokens</th><th scope="col">Time</th><th scope="col">Result</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>1 image</td><td>720</td><td>0.452 s</td><td>Pass</td></tr>
+                  <tr><td>3 images</td><td>1,216</td><td>0.526 s</td><td>Pass</td></tr>
+                  <tr><td>16 large images</td><td>13,824</td><td>2.218 s</td><td>210 MiB minimum margin</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p>
+              In a separate stress configuration containing eight 128K text sequences, the optimized 16-image workload fell from 2.47 to 1.69 seconds, returned all image outputs, and left no persistent visible allocation. This tests vision-workspace coexistence under that configuration; it is not a measurement of aggregate text-generation throughput.
+            </p>
+          </section>
+
+          <section id="state">
+            <h2>5. Cache reuse and the cost of reduced precision</h2>
+
+            <p>
+              Attention KV and GDN checkpoints have different storage requirements and error behavior. Across the 16 attention layers, an FP8 KV cache requires:
+            </p>
+
+            <pre class="formula"><code>16 layers × 2 (K,V) × 4 KV heads × 256 dims × 1 byte
+= 32,768 bytes/token = 32 KiB/token</code></pre>
+
+            <p>
+              NVFP4 reduces the stored attention cache to roughly 18 KiB per token, or about 20 KiB including the shared FP8 workspace. The cache uses unit global scales for K and V, with E4M3 scales for blocks of 16 values. This saves substantial capacity at the native context length, but its effect on outputs requires a separate comparison.
+            </p>
+
+            <p>
+              GDN state has a nearly fixed footprint, yet summarizes the prefix processed by 48 layers. Reusing a prefix requires restoring both the attention pages and the matching recurrent state. Restoring only one produces an inconsistent model history.
+            </p>
+
+            <p>
+              Caching both reduced an exact 128K repeat from 17.07 to 0.396 seconds; a request with a 95%-shared prefix took 3.179 seconds. I then tested how the precision of the stored GDN checkpoint affected the resumed computation.
+            </p>
+
+            <p>
+              With the NVFP4 attention path held fixed, I replayed the same AgentTrove token stream while changing only the stored recurrent checkpoint. Host-side BF16 reproduced the cold run exactly at 4K and 32K. Block-8 INT8 was close at 4K but diverged substantially at 32K, even though the active recurrence used BF16 after restoration.
+            </p>
+
+            <div class="table-wrap">
+              <table>
+                <caption>GDN checkpoint precision with the attention-KV path held fixed</caption>
+                <thead>
+                  <tr><th scope="col">Prefix / restored state</th><th scope="col">Top-1 agreement</th><th scope="col">Log-probability MAE</th><th scope="col">Maximum error</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>4K / host BF16</td><td>1.000</td><td>0</td><td>0</td></tr>
+                  <tr><td>32K / host BF16</td><td>1.000</td><td>0</td><td>0</td></tr>
+                  <tr><td>4K / block-8 INT8</td><td>0.984</td><td>0.038</td><td>—</td></tr>
+                  <tr><td>32K / block-8 INT8</td><td>0.424</td><td>2.948</td><td>20.904</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="note">
+              <strong>Practical implication:</strong> In these tests, BF16 preserved the recurrent checkpoint exactly, while INT8 restoration introduced substantial error at 32K. Attention-KV compression needs its own fidelity check.
+            </div>
+
+            <h3>Controlled FP8 versus NVFP4 comparison</h3>
+
+            <p>
+              Four early probes gave an incomplete picture of NVFP4 cache fidelity: three matched the FP8 top token and one differed. I expanded this to a controlled comparison of the two target-only serving paths. The larger test failed the predefined agreement thresholds.
+            </p>
+
+            <p>
+              Both profiles used the same checkpoint, tokenizer, input token IDs, BF16 GDN state, context and memory-pool sizes, page size, chunking, concurrency, scheduler, and graph settings. One used FP8 target KV; the other used NVFP4 with its required native prefill selector. <strong>MTP was disabled.</strong> The experiment therefore compares two deployable cache paths, including their kernel differences, rather than isolating storage precision alone.
+            </p>
+
+            <p>
+              The test contained 64 deterministic next-token states: four base histories, four branches, and four context lengths—2K, 32K, 128K, and 240K. Sixteen cases began cold; 48 were planned as shared-prefix branches, of which telemetry confirmed 32 actual cache hits. Before the comparison, eight states were replayed after restarting each profile. All 16 same-format replays returned identical log probabilities, supporting repeatability on those checks.
+            </p>
+
+            <div class="table-wrap">
+              <table>
+                <caption>FP8 reference versus NVFP4 candidate, deterministic next-token gate</caption>
+                <thead>
+                  <tr><th scope="col">Context</th><th scope="col">Top-1 match</th><th scope="col">FP8 top-1 in NVFP4 top-5</th><th scope="col">Mean top-10 overlap</th><th scope="col">Top-100 log-p MAE</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>2K</td><td>10 / 16</td><td>16 / 16</td><td>0.725</td><td>0.227</td></tr>
+                  <tr><td>32K</td><td>12 / 16</td><td>16 / 16</td><td>0.800</td><td>0.184</td></tr>
+                  <tr><td>128K</td><td>10 / 16</td><td>15 / 16</td><td>0.750</td><td>0.186</td></tr>
+                  <tr><td>240K</td><td>13 / 16</td><td>16 / 16</td><td>0.819</td><td>0.173</td></tr>
+                  <tr><th scope="row">Overall</th><td><strong>45 / 64</strong></td><td><strong>63 / 64</strong></td><td><strong>0.773</strong></td><td><strong>0.192</strong></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p>
+              FP8 and NVFP4 selected the same top token in 45 of 64 states. The FP8 winner remained in the NVFP4 top five in 63 cases, and mean top-10 overlap was 0.773. Nevertheless, 19 top-token changes can alter autoregressive continuations. Seven of the 36 states with an FP8 winning margin above 0.25 nats also changed their top token.
+            </p>
+
+            <p>
+              The 70.3% match rate has a Wilson 95% interval of 58.2–80.1%. Mean common-top-100 log-probability error was 0.192, with a bootstrap 95% interval of 0.174–0.212 and p95 of 0.322. Agreement varied across lengths: 62.5% at 2K, 75% at 32K, 62.5% at 128K, and 81.25% at 240K. This small set of related histories does not establish a monotonic relation between context length and error or a general task-accuracy estimate.
+            </p>
+
+            <p>
+              The predefined thresholds included at least 63/64 top-1 matches, all 64 FP8 winners retained in the NVFP4 top five, preservation of every high-margin decision, and mean top-10 overlap of at least 0.80. The observed results failed these criteria. <strong>These are decision-agreement diagnostics, not downstream accuracy scores; they do not support a claim of no accuracy loss.</strong>
+            </p>
+
+            <div class="table-wrap">
+              <table>
+                <caption>Median wall time in the same target-only A/B profile</caption>
+                <thead>
+                  <tr><th scope="col">Case</th><th scope="col">FP8</th><th scope="col">NVFP4</th><th scope="col">NVFP4 / FP8</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>2K cold prefill</td><td>0.143 s</td><td>0.145 s</td><td>1.01×</td></tr>
+                  <tr><td>32K cold prefill</td><td>2.697 s</td><td>2.708 s</td><td>1.00×</td></tr>
+                  <tr><td>128K cold prefill</td><td>15.887 s</td><td>15.870 s</td><td>1.00×</td></tr>
+                  <tr><td>240K cold prefill</td><td>40.414 s</td><td>67.766 s</td><td>1.68×</td></tr>
+                  <tr><td>240K observed prefix hit</td><td>0.181 s</td><td>0.714 s</td><td>3.94×</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p>
+              Latency was similar through 128K, but the NVFP4 path took 67.766 seconds at 240K versus 40.414 seconds for FP8. An observed 240K prefix hit took 0.714 versus 0.181 seconds. Thus, in this implementation, lower cache memory did not translate into lower latency at the longest tested context. This target-only profile differs from the MTP serving measurements earlier in the note.
+            </p>
+
+            <p>
+              The evaluation plan required the deterministic checks to pass before paired AIME, AA-LCR, and vision runs. Because they failed, those downstream comparisons were not completed; the finished FP8 tasks provide only a baseline. A separate MTP3 attempt stopped when the FP8 XQA verification path encountered an uninitialized target mask on its first reasoning case. Speculative KV parity therefore remains unresolved.
+            </p>
+
+            <p>
+              The deployment demonstrates a capacity benefit from NVFP4, while the controlled comparison identifies output changes and a long-context latency cost. Attention pages and recurrent checkpoints need separate fidelity checks, and neither capacity nor speed alone establishes model quality.
+            </p>
+          </section>
+
+          <section id="failures">
+            <h2>Practical lessons</h2>
+
+            <ul>
+              <li><strong>Calibrate continuous state.</strong> Preserve positions, attention KV, and recurrence across long sequences, then check held-out generation as well as local reconstruction loss.</li>
+              <li><strong>Verify the executed path.</strong> Audit kernel launches and pair performance measurements with correctness checks.</li>
+              <li><strong>Account for runtime allocations.</strong> Include transfers, workspaces, CUDA graphs, and multimodal peaks when evaluating memory savings.</li>
+              <li><strong>Measure speculative state overhead.</strong> Replaying accepted recurrence inputs reduced the snapshot cost while preserving outputs in the paired checks.</li>
+              <li><strong>Report capacity, speed, and quality separately.</strong> The NVFP4 cache saved memory but failed the FP8 decision-agreement criteria and was slower at 240K in the target-only comparison.</li>
+            </ul>
+
+            <blockquote>
+              An optimization is useful only with its measurement conditions: the workload, runtime path, memory budget, and correctness checks that accompany the reported speed.
+            </blockquote>
+          </section>
+
+          <section id="reproduce">
+            <h2>Reproducing the measurements</h2>
+
+            <p>
+              The companion repository, <a href="https://github.com/poseidonchan/5090-Qwen3.8-27B" target="_blank" rel="noreferrer">poseidonchan/5090-Qwen3.8-27B</a>, contains the pinned upstream base, SGLang and FlashInfer overlay, launch profiles, calibration and benchmark scripts, and a mapping from reported measurements to commands and expected outputs.
+            </p>
+
+            <div class="note">
+              <strong>Start with the reproducibility lockfile.</strong> It identifies the upstream snapshot required by the overlay. Model weights, calibration corpora, request traces, and machine-specific paths are not bundled with the code and manifests.
+            </div>
+
+            <p>
+              Begin by verifying model and checkpoint identity, then run a short correctness case and confirm the launched kernel. Next measure cold prefill, compare output hashes, and test prefix reuse before increasing context length and concurrency. Keep the MTP performance profile and target-only cache A/B profile separate when reproducing their results.
+            </p>
+
+            <h3>Open questions and next experiments</h3>
+
+            <ul>
+              <li>Measure tail latency under networked, multi-user request traces.</li>
+              <li>Repair the XQA verification path and investigate cache-fidelity failures before attempting paired MTP3, AIME, AA-LCR, and vision comparisons.</li>
+              <li>Build transform-aware kernels for a proper randomized-Hadamard comparison against the original-coordinate fixed-grid PTQ used here.</li>
+              <li>Expand multilingual, vision, and tool-use evaluation beyond the current regression cases.</li>
+              <li>Separate the SM120 changes into maintainable patches suitable for upstream integration.</li>
+            </ul>
+          </section>
+
+          <section id="references">
+            <h2>References</h2>
+            <ol class="references">
+              <li><a href="https://github.com/QwenLM/Qwen3.8" target="_blank" rel="noreferrer">Qwen3.8 official repository</a> and <a href="https://huggingface.co/Qwen/Qwen3.8-27B" target="_blank" rel="noreferrer">Qwen3.8-27B model card</a>.</li>
+              <li><a href="https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5090/" target="_blank" rel="noreferrer">NVIDIA GeForce RTX 5090 specifications</a>.</li>
+              <li>Chee et al., <a href="https://arxiv.org/abs/2307.13304" target="_blank" rel="noreferrer">QuIP: 2-Bit Quantization of Large Language Models With Guarantees</a>, 2023.</li>
+              <li>Tseng et al., <a href="https://arxiv.org/abs/2402.04396" target="_blank" rel="noreferrer">QuIP#: Even Better LLM Quantization with Hadamard Incoherence and Lattice Codebooks</a>, 2024.</li>
+              <li><a href="https://docs.flashinfer.ai/api/attention.html" target="_blank" rel="noreferrer">FlashInfer attention-kernel documentation</a>.</li>
+              <li><a href="https://github.com/sgl-project/sglang" target="_blank" rel="noreferrer">SGLang</a>, Apache-2.0 serving framework.</li>
+            </ol>
+          </section>
+
+          <div class="citation-box">
+            <h3>Citation</h3>
+            <pre><code>@misc{chen2026qwen38rtx5090,
+  author = {Yanshuo Chen},
+  title  = {Running Qwen3.8-27B on a Single RTX 5090},
+  year   = {2026},
+  month  = aug,
+  url    = {https://github.com/poseidonchan/5090-Qwen3.8-27B}
+}</code></pre>
+          </div>
+
+          <p class="article-end">
+            If you reproduce these measurements on another Blackwell GPU, please include the checkpoint, runtime revision, workload, and correctness checks alongside the timing. Comparisons with those details will help identify which results transfer across systems.
+          </p>
+        </div>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <span>Yanshuo Chen</span>
+      <a href="../blog.html">All posts</a>
+    </footer>
+  </body>
+</html>
