@@ -1,8 +1,8 @@
 # Public CV
 
-This version omits Education and Research Experience. It retains general
-interests, employment, honors, and papers listed on the public website. Keep unpublished projects, future plans, and
-private contact information out of this directory.
+This version omits Research Experience. It retains education, general interests,
+employment, honors, and papers listed on the public website. Keep unpublished
+projects, future plans, and private contact information out of this directory.
 
 Build from the website root with `bash cv-public/build.sh` (XeLaTeX and latexmk).
 The script writes identical PDFs to `assets/yanshuo-chen-cv-public.pdf` and

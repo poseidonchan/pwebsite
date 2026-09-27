@@ -24,8 +24,8 @@ Open <http://127.0.0.1:8765/>. No build step or package installation is needed.
 Homepage styles live in `css/proposal.css`. `js/proposal.js` adds publication
 filters and section navigation; all publications remain available without JavaScript.
 
-The public CV is `assets/yanshuo-chen-cv-public.pdf`. It omits Education and Research
-Experience, keeping general interests, employment, honors, and public papers. Editable source lives in
+The public CV is `assets/yanshuo-chen-cv-public.pdf`. It omits Research Experience,
+keeping education, general interests, employment, honors, and public papers. Editable source lives in
 `cv-public/`; run `bash cv-public/build.sh` to rebuild it. Never publish private
 research plans or unpublished project descriptions.
 
